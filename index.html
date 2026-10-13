@@ -347,7 +347,7 @@ nav.tabs button[aria-current="page"]{color:var(--brass)}
 
 <script>
 (function(){
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 const NAME = "Matheus";
 const GOAL = 0.8;
 const WD = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -466,7 +466,10 @@ function renderHoje(){
   const tk=todayKey(), k=S.sel, isToday=k===tk, d=fromKey(k), hs=habits(), bs=blocks();
   const vis=visHabits(k), req=reqHabits(k);
   const doc=dayDoc(k)||{done:{}}; const done=doc.done||{};
-  $("#h-date").textContent = `${WD[d.getDay()]} · ${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`;
+  const realD = new Date(), late = isToday && keyOf(realD) !== k;
+  $("#h-date").textContent = late
+    ? `${WD[d.getDay()]} · ${d.getDate()} ${MO[d.getMonth()]} · madrugada de ${WD[realD.getDay()]}`
+    : `${WD[d.getDay()]} · ${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`;
   $("#h-back").hidden = isToday;
   const nr = (nowMin() - dsMin() + 1440) % 1440;
   const pendVis = vis.filter(h=>!done[h.id]);
