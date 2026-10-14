@@ -159,6 +159,29 @@ header.top{display:grid;gap:8px;padding-top:4px}
 .bar{grid-column:1/-1;height:3px;background:var(--surface-2);border-radius:2px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--brass);border-radius:2px}
 
+/* milestones */
+.dayline{justify-self:start;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px;margin-top:4px}
+.dayline b{color:var(--brass);font-weight:500}
+.dayline.hit{color:var(--bg);background:var(--brass);border-color:var(--brass)}
+.dayline.hit b{color:var(--bg)}
+.ms-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ms-big{font-family:var(--f-display);font-size:52px;line-height:1}
+.ms-big em{font-style:italic;color:var(--brass)}
+.ms-sub{color:var(--muted);font-size:14px}
+.track{position:relative;height:92px;margin:22px 4px 0}
+.track .ln,.track .fill{position:absolute;left:0;top:7px;height:2px;border-radius:2px}
+.track .ln{right:0;background:var(--surface-2)}
+.track .fill{background:var(--brass);transition:width .8s var(--ease)}
+.node{position:absolute;top:0;transform:translateX(-50%);display:grid;justify-items:center;gap:5px;text-align:center;width:max-content}
+.node.first{transform:none;justify-items:start;text-align:left}
+.node.last{transform:translateX(-100%);justify-items:end;text-align:right}
+.node i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--faint);background:var(--bg);display:block}
+.node.on i{background:var(--brass);border-color:var(--brass);box-shadow:0 0 12px var(--brass-glow)}
+.node b{font-family:var(--f-display);font-weight:400;font-size:17px;line-height:1.1}
+.node.on b{color:var(--brass)}
+.node small{font-family:var(--f-mono);font-size:10.5px;color:var(--faint);line-height:1.35;font-variant-numeric:tabular-nums}
+input[type=date]{font-family:var(--f-mono);font-size:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;color:var(--fg)}
+
 /* routine editor */
 .sub{margin-top:30px;display:grid;gap:4px}
 .sub h2{font-size:22px}
@@ -234,6 +257,7 @@ nav.tabs button[aria-current="page"]{color:var(--brass)}
       <div class="eyebrow" id="h-date">—</div>
       <h1 id="h-greet">Sua rotina</h1>
       <p class="lede" id="h-lede">Carregando suas metas.</p>
+      <div class="dayline" id="h-day" hidden></div>
       <button class="back" id="h-back" hidden>Voltar para hoje</button>
     </header>
     <div class="week" id="week" role="tablist" aria-label="Últimos 7 dias"></div>
@@ -251,6 +275,10 @@ nav.tabs button[aria-current="page"]{color:var(--brass)}
       <h1>O que a repetição <em>construiu</em>.</h1>
       <p class="lede">Um dia conta como cumprido quando você fecha 80% ou mais das metas.</p>
     </header>
+    <div class="section">
+      <div class="section-h"><h2>Marcos</h2><p id="ms-start"></p></div>
+      <div id="ms"></div>
+    </div>
     <div class="stats" id="stats"></div>
     <div class="section">
       <div class="section-h"><h2>16 semanas</h2>
@@ -291,6 +319,12 @@ nav.tabs button[aria-current="page"]{color:var(--brass)}
           <button class="rm" id="sync-off">Desconectar este aparelho</button>
         </div>
       </div>
+    </div>
+
+    <div class="sub">
+      <h2>Início da rotina</h2>
+      <p>O dia 1. Os marcos de 30, 60 e 90 dias contam a partir daqui.</p>
+      <div class="ds"><input type="date" id="start" aria-label="Data de início da rotina"></div>
     </div>
 
     <div class="sub">
@@ -347,7 +381,7 @@ nav.tabs button[aria-current="page"]{color:var(--brass)}
 
 <script>
 (function(){
-const VERSION = "1.0.1";
+const VERSION = "1.1.0";
 const NAME = "Matheus";
 const GOAL = 0.8;
 const WD = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -427,6 +461,20 @@ function bestStreak(){
   while(d<=end){ if(score(keyOf(d))>=GOAL){cur++; best=Math.max(best,cur);} else cur=0; d=addDays(d,1); }
   return best;
 }
+const MARKS = [30, 60, 90];
+function startKey(){
+  if(S.config && S.config.startDate) return S.config.startDate;
+  const c = Object.keys(S.days).concat(habits().map(h=>h.since).filter(Boolean)).sort();
+  return c[0] || todayKey();
+}
+const diffDays = (a,b) => Math.round((fromKey(b)-fromKey(a))/864e5);
+const dayNum = () => Math.max(1, diffDays(startKey(), todayKey())+1);
+const fmtD = d => `${d.getDate()} ${MO[d.getMonth()]}`;
+function doneIn(fromK, n){
+  let c=0; const tk=todayKey();
+  for(let i=0;i<n;i++){ const k=keyOf(addDays(fromKey(fromK),i)); if(k>tk) break; if(score(k)>=GOAL) c++; }
+  return c;
+}
 const period = t => { const m=mins(t); return m<360?"Madrugada":m<720?"Manhã":m<1080?"Tarde":"Noite"; };
 function greeting(){ const h=new Date().getHours(); return h<5?"Boa madrugada":h<12?"Bom dia":h<18?"Boa tarde":"Boa noite"; }
 
@@ -492,6 +540,14 @@ function renderHoje(){
     $("#h-lede").innerHTML = `Você está editando um dia passado. Fechou <b>${Math.round(score(k)*100)}%</b>.`;
   }
 
+  const hd=$("#h-day");
+  if(isToday && hs.length){
+    const n=dayNum(), nx=MARKS.find(m=>m>n), hit=MARKS.includes(n);
+    hd.hidden=false; hd.className="dayline"+(hit?" hit":"");
+    hd.innerHTML = hit ? `Dia ${n} · <b>marco de ${n} dias</b>`
+      : nx ? `Dia <b>${n}</b> · marco de ${nx} em ${nx-n} ${nx-n===1?"dia":"dias"}` : `Dia <b>${n}</b>`;
+  } else hd.hidden=true;
+
   const base=baseDay(); let w=""; for(let i=6;i>=0;i--){ const dd=addDays(base,-i), kk=keyOf(dd);
     w+=`<button class="wd${kk===k?" sel":""}${kk===tk?" today":""}" data-day="${kk}" role="tab" aria-selected="${kk===k}" aria-label="${WD[dd.getDay()]} ${dd.getDate()}"><span class="l">${WD1[dd.getDay()]}</span>${ring(score(kk))}<span class="n">${pad(dd.getDate())}</span></button>`; }
   $("#week").innerHTML=w;
@@ -531,6 +587,21 @@ function renderHoje(){
 /* ---------- render: progresso ---------- */
 function renderProgresso(){
   const hs=habits(), today=baseDay(); let avg=0; for(let i=0;i<7;i++) avg+=score(keyOf(addDays(today,-i))); avg=Math.round(avg/7*100);
+  {
+    const sk=startKey(), sd=fromKey(sk), n=dayNum(), nx=MARKS.find(m=>m>n), last=MARKS[MARKS.length-1];
+    $("#ms-start").textContent = `começou em ${fmtD(sd)}`;
+    const sub = MARKS.includes(n) ? `hoje você chega aos ${n} dias.` : nx ? `faltam ${nx-n} ${nx-n===1?"dia":"dias"} para o marco de ${nx}.` : `os três marcos já ficaram para trás.`;
+    let t = `<div class="ms-head"><span class="ms-big">Dia <em>${n}</em></span><span class="ms-sub">${sub}</span></div>`;
+    t += `<div class="track"><span class="ln"></span><span class="fill" style="width:${Math.min(n,last)/last*100}%"></span>`;
+    t += `<div class="node first on" style="left:0"><i></i><b>Início</b><small>${fmtD(sd)}</small></div>`;
+    MARKS.forEach((m,i)=>{
+      const on=n>=m, d=addDays(sd,m-1), lastN=i===MARKS.length-1;
+      const info = on ? `${doneIn(sk,m)} de ${m} cumpridos` : `${fmtD(d)}`;
+      t += `<div class="node${on?" on":""}${lastN?" last":""}" style="left:${m/last*100}%"><i></i><b>${m} dias</b><small>${info}</small></div>`;
+    });
+    t += `</div>`;
+    $("#ms").innerHTML = t;
+  }
   const cur=dayStreak(), best=bestStreak();
   $("#stats").innerHTML =
     `<div class="stat"><div class="v">${cur}</div><div class="k">${cur===1?"dia cumprido seguido":"dias cumpridos seguidos"}</div></div>`+
@@ -557,6 +628,7 @@ function renderProgresso(){
 /* ---------- render: rotina ---------- */
 function renderRotina(){
   const ds=$("#ds"); if(document.activeElement!==ds) ds.value=(S.config&&S.config.dayStart)||"10:00";
+  const st=$("#start"); if(document.activeElement!==st){ st.value=startKey(); st.max=todayKey(); }
   const eb=$("#edit-b");
   if(!eb.contains(document.activeElement)){
     const bs=blocks();
@@ -770,6 +842,11 @@ document.addEventListener("click", e=>{
   if(rmb){ if(!armed(rmb)) return; ensureConfig(); S.config.blocks = S.config.blocks.filter(b=>b.id!==rmb.dataset.rmb); saveConfig(); rmb.blur(); render(); return; }
 });
 $("#imp-file").addEventListener("change", e=>{ const f=e.target.files&&e.target.files[0]; if(f) importBackup(f); e.target.value=""; });
+$("#start").addEventListener("change", e=>{
+  const v=e.target.value; if(!v || v>todayKey()){ e.target.value=startKey(); return; }
+  ensureConfig(); S.config.startDate=v; saveConfig(); renderHoje(); renderProgresso();
+  toast(`Rotina contando desde ${fmtD(fromKey(v))}.`);
+});
 $("#ds").addEventListener("change", e=>{ if(!e.target.value) return; ensureConfig(); S.config.dayStart=e.target.value; S.follow=true; saveConfig(); render(); });
 $("#edit").addEventListener("change", e=>{
   const row=e.target.closest("[data-row]"); if(!row) return; ensureConfig();

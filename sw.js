@@ -1,6 +1,6 @@
 // Ritmo service worker: the app shell works offline; fonts are cached after first use.
 // Bump CACHE when index.html changes so installed copies pick up the new version.
-const CACHE = "ritmo-v1.0.1";
+const CACHE = "ritmo-v1.1.0";
 const SHELL = [
   "./",
   "./index.html",
