@@ -256,10 +256,22 @@ const RULES = [
   ['Dor', 'Queimação no músculo é normal. Pontada ou dor aguda na articulação: pare o exercício.']
 ];
 const FOODS = [
-  ['Almoço em casa', 30], ['Café da tarde', 13, 'Pão com presunto e queijo'], ['Jantar no refeitório', 30],
-  ['Whey (1 dose)', 25], ['3 ovos', 18], ['2 ovos', 12], ['Copo de leite', 10], ['Hambúrguer', 13],
-  ['Nuggets (6)', 14], ['Iogurte', 10], ['Atum em lata', 25], ['Frango (palma)', 30]
+  ['Almoço em casa', 30, 'Com carne ou frango'], ['Almoço com salsicha', 20, 'Arroz + 3 salsichas'],
+  ['Whey (1 dose)', 25], ['2 ovos', 12], ['3 ovos', 18], ['Copo de leite', 10],
+  ['Jantar no refeitório', 28, '2 pedaços de proteína'], ['Concha de feijão', 6],
+  ['Café do refeitório', 13, '1 pão com presunto e queijo'], ['Café com leite', 5],
+  ['Iogurte', 10], ['Hambúrguer', 13], ['Nuggets (6)', 14], ['Atum em lata', 25]
 ];
+// O dia de alimentação vira às 5h: o café das 2h e a chegada às 3:55 contam no dia anterior.
+const foodToday = () => dkey(new Date(Date.now() - 5 * 3600e3));
+function mealHint() {
+  const d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+  if (m >= 720 && m < 840) return 'Almoço é o seu pré-treino: prato normal, com proteína. Se a mistura for salsicha, hambúrguer ou nuggets, junte 2 ovos.';
+  if (m >= 840 && m < 1068) return 'Depois do treino: whey com leite e banana, ou 3 ovos com pão e leite. A creatina pode ir junto.';
+  if (m >= 1068 && m < 1290) return 'Jantar no refeitório às 19:20: capriche no feijão e pegue ovo ou grão-de-bico se tiver.';
+  if (m >= 1290 || m < 235) return 'Café do refeitório depois das 2:00: pão com presunto e queijo, 2 se puder, e a fruta.';
+  return 'Antes de dormir, se tiver fome: leite, iogurte ou 2 ovos.';
+}
 
 /* ---------------- Estado ---------------- */
 const KEY = 'carga.v1';
@@ -557,19 +569,20 @@ function vCorpo() {
 /* --------- Proteína --------- */
 function dayFood(k) { if (!S.food[k]) S.food[k] = { items: [], creatina: false }; return S.food[k]; }
 function vFood() {
-  const k = foodDay || dkey();
+  const k = foodDay || foodToday();
   const f = S.food[k] || { items: [], creatina: false };
   const total = f.items.reduce((a, b) => a + b.p, 0);
   const goal = S.settings.protein;
   const d = parseKey(k);
-  const isToday = k === dkey();
-  const days = []; for (let i = 6; i >= 0; i--) { const x = new Date(); x.setDate(x.getDate() - i); days.push(dkey(x)); }
+  const isToday = k === foodToday();
+  const days = []; for (let i = 6; i >= 0; i--) { const x = parseKey(foodToday()); x.setDate(x.getDate() - i); days.push(dkey(x)); }
   return `${topbar()}
   <div class="row between" style="margin-bottom:12px"><button class="iconbtn" data-a="fday" data-v="-1" aria-label="Dia anterior">‹</button><h2>${isToday ? 'Hoje' : fdate(d)}</h2><button class="iconbtn" data-a="fday" data-v="1" aria-label="Próximo dia" ${isToday ? 'disabled style="opacity:.3"' : ''}>›</button></div>
   <div class="stack">
     <div class="card"><div class="muted small">Proteína do dia</div><div class="big">${total}<small> / ${goal} g</small></div>
       <div class="meter ${total >= goal ? 'full' : ''}"><i style="width:${Math.min(100, total / goal * 100)}%"></i></div>
       <p class="small muted" style="margin-top:10px">${total >= goal ? 'Meta batida.' : `Faltam ${goal - total} g. ${goal - total >= 20 ? 'Uma dose de whey resolve 25 g.' : 'Um copo de leite ou 2 ovos fecham.'}`}</p>
+      ${isToday ? `<p class="small" style="margin-top:8px;color:#C9D1DB">${mealHint()}</p>` : ''}
     </div>
     <button class="toggle ${f.creatina ? 'on' : ''}" data-a="creat"><span class="box">${f.creatina ? ICON.check : ''}</span><span><b>Creatina ${f.creatina ? 'tomada' : 'de hoje'}</b><br><span class="small muted">3 a 5 g, todo dia, inclusive no descanso</span></span></button>
     <div><h3 style="margin-bottom:10px">Adicionar</h3><div class="quick">${FOODS.map(([n, p, sub], i) => `<button data-a="food-add" data-v="${i}"><b>${n}</b><span>${sub ? sub + ', ' : ''}${p} g</span></button>`).join('')}</div>
@@ -668,7 +681,7 @@ function finishSession() {
     <div class="kv"><span>Séries feitas</span><b>${nsets}</b></div>
     <div class="kv"><span>Recordes de carga</span><b class="${prs ? 'pr' : ''}">${prs}</b></div></div>
     ${prList.length ? `<ul class="list small">${prList.map(p => `<li class="pr">${esc(p)}</li>`).join('')}</ul>` : ''}
-    <p class="muted small" style="margin:14px 0">Próximo: ${esc(next.name)}. Agora, proteína: uma dose de whey com leite e banana fecha bem o dia.</p>
+    <p class="muted small" style="margin:14px 0">Próximo: ${esc(next.name)}. Agora é o café da tarde pós-treino: whey com leite e banana, ou 3 ovos com pão e leite. A creatina pode ir junto.</p>
     <button class="btn primary full" data-a="sheet-close">Fechar</button>`);
 }
 
@@ -751,11 +764,11 @@ document.addEventListener('click', ev => {
       if (ex) { if (w != null) ex.weight = w; if (c != null) ex.waist = c; } else S.body.push({ id: uid(), date, weight: w, waist: c });
       save(); render(); toast('Medida salva'); break; }
     case 'body-del': S.body = S.body.filter(e => e.id !== v); save(); render(); break;
-    case 'fday': { const d = parseKey(foodDay || dkey()); d.setDate(d.getDate() + +v); const k = dkey(d); if (k > dkey()) break; foodDay = k === dkey() ? null : k; render(); break; }
-    case 'creat': { const f = dayFood(foodDay || dkey()); f.creatina = !f.creatina; save(); render(); break; }
-    case 'food-add': { const [n, p] = FOODS[+v]; dayFood(foodDay || dkey()).items.push({ n, p }); save(); render(); toast(`+${p} g`); break; }
-    case 'food-custom': { const n = $('#f-name').value.trim() || 'Outro', p = Math.round(pnum($('#f-p').value) || 0); if (p <= 0) { toast('Coloque os gramas de proteína.'); break; } dayFood(foodDay || dkey()).items.push({ n, p }); save(); render(); break; }
-    case 'food-del': { dayFood(foodDay || dkey()).items.splice(+v, 1); save(); render(); break; }
+    case 'fday': { const d = parseKey(foodDay || foodToday()); d.setDate(d.getDate() + +v); const k = dkey(d); if (k > foodToday()) break; foodDay = k === foodToday() ? null : k; render(); break; }
+    case 'creat': { const f = dayFood(foodDay || foodToday()); f.creatina = !f.creatina; save(); render(); break; }
+    case 'food-add': { const [n, p] = FOODS[+v]; dayFood(foodDay || foodToday()).items.push({ n, p }); save(); render(); toast(`+${p} g`); break; }
+    case 'food-custom': { const n = $('#f-name').value.trim() || 'Outro', p = Math.round(pnum($('#f-p').value) || 0); if (p <= 0) { toast('Coloque os gramas de proteína.'); break; } dayFood(foodDay || foodToday()).items.push({ n, p }); save(); render(); break; }
+    case 'food-del': { dayFood(foodDay || foodToday()).items.splice(+v, 1); save(); render(); break; }
     case 'settings': openSheet(vSettings()); bindSettings(); break;
     case 'sheet-close': closeSheet(); break;
     case 'ed-w': edWid = v; openSheet(vSettings()); bindSettings(); break;
